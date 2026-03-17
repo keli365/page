@@ -1,0 +1,2041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 上下文演示 - 现代版</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+  :root {
+    /* 主色调 - 赛博青橙 */
+    --primary: #00d4ff;
+    --primary-dark: #0099cc;
+    --secondary: #ff6b35;
+    --secondary-glow: rgba(255, 107, 53, 0.4);
+
+    /* 背景色 */
+    --bg-dark: #0a0a0f;
+    --bg-card: rgba(20, 20, 30, 0.8);
+    --bg-glass: rgba(255, 255, 255, 0.03);
+
+    /* 文字 */
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-muted: rgba(255, 255, 255, 0.4);
+
+    /* 角色颜色 */
+    --c-system: #a855f7;
+    --c-memory: #ec4899;
+    --c-project: #3b82f6;
+    --c-skills: #f59e0b;
+    --c-mcp: #10b981;
+    --c-user: #ff6b35;
+    --c-ai: #00d4ff;
+
+    /* 渐变 */
+    --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    --gradient-glow: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(255, 107, 53, 0.2) 100%);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 动态背景 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 40%, rgba(0, 212, 255, 0.15), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 60%, rgba(255, 107, 53, 0.1), transparent),
+      radial-gradient(ellipse 50% 30% at 50% 100%, rgba(168, 85, 247, 0.1), transparent);
+    animation: bgPulse 8s ease-in-out infinite;
+    z-index: 0;
+  }
+
+  @keyframes bgPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.02); }
+  }
+
+  /* 网格装饰 */
+  .grid-overlay {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: 1;
+    perspective: 1000px;
+    transform-style: preserve-3d;
+  }
+
+  /* ===== 顶部导航栏 ===== */
+  .header {
+    position: relative;
+    z-index: 10;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+    background: linear-gradient(180deg, rgba(10, 10, 15, 0.95) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+  }
+
+  .logo-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .logo-icon {
+    width: 45px;
+    height: 45px;
+    background: var(--gradient-primary);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
+    animation: shine 3s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .logo-text h1 {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo-text p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .stage-indicator {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .stage-badge {
+    padding: 8px 20px;
+    background: var(--bg-glass);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 20px;
+    font-size: 14px;
+    color: var(--primary);
+    font-weight: 500;
+  }
+
+  .stage-badge span {
+    color: var(--secondary);
+    font-weight: 700;
+  }
+
+  /* ===== 主舞台 ===== */
+  .main-stage {
+    position: relative;
+    z-index: 5;
+    height: calc(100vh - 70px);
+    display: grid;
+    grid-template-columns: 300px 1fr 380px;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  /* ===== 通用卡片样式 ===== */
+  .glass-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .card-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .card-title .icon {
+    width: 32px;
+    height: 32px;
+    background: var(--bg-glass);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  /* ===== 左侧：角色/来源面板 ===== */
+  .sources-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sources-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+  }
+
+  .sources-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sources-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 3px;
+  }
+
+  .source-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: var(--bg-glass);
+    border-radius: 12px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .source-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(5px);
+  }
+
+  .source-item.active {
+    border-color: currentColor;
+    background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent);
+    box-shadow: 0 0 20px currentColor;
+  }
+
+  .source-item[data-type="system"] { color: var(--c-system); }
+  .source-item[data-type="memory"] { color: var(--c-memory); }
+  .source-item[data-type="project"] { color: var(--c-project); }
+  .source-item[data-type="rules"] { color: #10b981; }
+  .source-item[data-type="skills"] { color: var(--c-skills); }
+  .source-item[data-type="mcp"] { color: var(--c-mcp); }
+
+  .source-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .source-filepath {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .source-tag {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  .source-tag.system {
+    background: rgba(168, 85, 247, 0.2);
+    color: var(--c-system);
+  }
+
+  .source-tag.user {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--c-project);
+  }
+
+  .source-tag.auto {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--c-mcp);
+  }
+
+  .source-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border: 2px solid currentColor;
+    box-shadow: 0 0 15px currentColor;
+  }
+
+  .source-info {
+    flex: 1;
+  }
+
+  .source-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .source-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .source-power {
+    font-size: 11px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 中间：核心展示区 ===== */
+  .core-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Token 能量条 */
+  .energy-bar {
+    padding: 20px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+  }
+
+  .energy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .energy-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .energy-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  .energy-value span {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .energy-track {
+    height: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  }
+
+  .energy-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 6px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .energy-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: energyFlow 2s infinite;
+  }
+
+  @keyframes energyFlow {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* 消息流 */
+  .message-stream {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .message-stream::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .message-stream::-webkit-scrollbar-thumb {
+    background: linear-gradient(var(--primary), var(--secondary));
+    border-radius: 4px;
+  }
+
+  .message-item {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 15px;
+    background: var(--bg-glass);
+    border-radius: 16px;
+    border-left: 4px solid;
+    animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .message-item.system { border-color: var(--c-system); }
+  .message-item.memory { border-color: var(--c-memory); }
+  .message-item.project { border-color: var(--c-project); }
+  .message-item.skills { border-color: var(--c-skills); }
+  .message-item.mcp { border-color: var(--c-mcp); }
+  .message-item.user { border-color: var(--c-user); }
+  .message-item.ai { border-color: var(--c-ai); }
+
+  .message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid currentColor;
+    flex-shrink: 0;
+  }
+
+  .message-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .message-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .message-sender {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .message-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    color: var(--text-muted);
+  }
+
+  .message-body {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .message-body.preview {
+    max-height: 60px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .message-body.preview::after {
+    content: '点击查看完整内容 →';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 0 5px;
+    background: linear-gradient(transparent, var(--bg-card));
+    color: var(--primary);
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .message-item.clickable {
+    cursor: pointer;
+  }
+
+  .message-item.clickable:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* ===== 右侧：对话区 ===== */
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .chat-bubble {
+    max-width: 85%;
+    padding: 15px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    animation: bubblePop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  @keyframes bubblePop {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .chat-bubble.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, rgba(255, 107, 53, 0.9), rgba(255, 107, 53, 0.7));
+    border-bottom-right-radius: 4px;
+    color: white;
+  }
+
+  .chat-bubble.ai {
+    align-self: flex-start;
+    background: var(--bg-glass);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-bottom-left-radius: 4px;
+  }
+
+  .bubble-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.8;
+  }
+
+  .chat-input-area {
+    padding: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .input-wrapper {
+    display: flex;
+    gap: 10px;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 12px 18px;
+    background: var(--bg-glass);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: all 0.3s;
+  }
+
+  .chat-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+  }
+
+  .send-btn {
+    padding: 12px 24px;
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+  }
+
+  .send-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+
+  .send-btn:hover::after {
+    transform: translateX(100%);
+  }
+
+  /* ===== 底部控制栏 ===== */
+  .control-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(0deg, rgba(10,10,15,0.98) 0%, rgba(10,10,15,0.8) 100%);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(0, 212, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+    z-index: 100;
+  }
+
+  .step-info {
+    flex: 1;
+  }
+
+  .step-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 5px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .step-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .nav-controls {
+    display: flex;
+    gap: 15px;
+  }
+
+  .nav-btn {
+    padding: 12px 30px;
+    background: var(--bg-glass);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .nav-btn.primary {
+    background: var(--gradient-primary);
+    border: none;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+  }
+
+  .nav-btn.primary:hover {
+    box-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
+  }
+
+  /* ===== 详情弹窗 ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 40px;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 800px;
+    max-height: 80vh;
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0, 212, 255, 0.2);
+    animation: modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes modalIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .modal-header {
+    padding: 20px 25px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .modal-close {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-glass);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .modal-close:hover {
+    background: rgba(255, 107, 53, 0.2);
+    border-color: var(--secondary);
+    color: var(--secondary);
+  }
+
+  .modal-body {
+    padding: 25px;
+    overflow: auto;
+    max-height: 60vh;
+  }
+
+  .code-block {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre;
+  }
+
+  /* 提示 */
+  .hint {
+    position: fixed;
+    top: 90px;
+    right: 30px;
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    z-index: 50;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  /* 配置面板 */
+  .config-toggle {
+    position: fixed;
+    bottom: 100px;
+    right: 30px;
+    padding: 12px 24px;
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 90;
+    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+    transition: all 0.3s;
+  }
+
+  .config-toggle:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0, 212, 255, 0.5);
+  }
+
+  .config-panel {
+    position: fixed;
+    top: 80px;
+    right: 30px;
+    width: 450px;
+    max-height: calc(100vh - 200px);
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 16px;
+    z-index: 150;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+
+  .config-panel.active {
+    display: flex;
+    animation: slideInRight 0.3s ease;
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .config-header {
+    padding: 15px 20px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .config-close {
+    width: 32px;
+    height: 32px;
+    background: var(--bg-glass);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .config-close:hover {
+    background: rgba(255, 107, 53, 0.2);
+    border-color: var(--secondary);
+    color: var(--secondary);
+  }
+
+  .config-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .config-content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .config-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 3px;
+  }
+
+  .config-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .config-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .config-section h4 {
+    font-size: 13px;
+    margin-bottom: 10px;
+    color: var(--primary);
+  }
+
+  .config-section p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .config-section ul {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+
+  .config-section li {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .config-section code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--primary);
+  }
+
+  .config-section pre {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    overflow-x: auto;
+    margin-top: 10px;
+  }
+
+  /* 响应式 */
+  @media (max-width: 1400px) {
+    .main-stage {
+      grid-template-columns: 260px 1fr 340px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- 背景网格 -->
+<div class="grid-overlay"></div>
+
+<!-- 顶部导航 -->
+<header class="header">
+  <div class="logo-section">
+    <div class="logo-icon">🎯</div>
+    <div class="logo-text">
+      <h1>Claude Code 上下文演示</h1>
+      <p>克力老师 · C++教学负责人专属版</p>
+    </div>
+  </div>
+  <div class="stage-indicator">
+    <div class="stage-badge">步骤 <span id="stepNum">1</span> / 12</div>
+  </div>
+</header>
+
+<!-- 主舞台 -->
+<div class="main-stage">
+  <!-- 左侧：来源面板 -->
+  <div class="glass-card sources-panel">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="icon">🎭</span>
+        信息来源
+      </div>
+      <span style="font-size: 12px; color: var(--text-muted);">7 个角色</span>
+    </div>
+    <div class="sources-list" id="sourcesList">
+      <div class="source-item" data-type="system" data-id="system">
+        <div class="source-avatar">🤖</div>
+        <div class="source-info">
+          <div class="source-name">系统核心</div>
+          <div class="source-desc">底层指令与安全边界</div>
+        </div>
+        <div class="source-meta">
+          <div class="source-filepath">系统内置</div>
+          <div class="source-tag system">不可修改</div>
+          <div class="source-power">2.3k</div>
+        </div>
+      </div>
+
+      <div class="source-item" data-type="memory" data-id="memory">
+        <div class="source-avatar">🧠</div>
+        <div class="source-info">
+          <div class="source-name">记忆库</div>
+          <div class="source-desc">克力老师长期记忆</div>
+        </div>
+        <div class="source-meta">
+          <div class="source-filepath">~/.claude/memory/</div>
+          <div class="source-tag user">用户配置</div>
+          <div class="source-power">~900</div>
+        </div>
+      </div>
+
+      <div class="source-item" data-type="project" data-id="project">
+        <div class="source-avatar">📋</div>
+        <div class="source-info">
+          <div class="source-name">项目档案</div>
+          <div class="source-desc">C++负责人职责配置</div>
+        </div>
+        <div class="source-meta">
+          <div class="source-filepath">./CLAUDE.md</div>
+          <div class="source-tag user">用户配置</div>
+          <div class="source-power">~2k</div>
+        </div>
+      </div>
+
+      <div class="source-item" data-type="rules" data-id="rules">
+        <div class="source-avatar">📜</div>
+        <div class="source-info">
+          <div class="source-name">动态规则</div>
+          <div class="source-desc">目录级规则覆盖</div>
+        </div>
+        <div class="source-meta">
+          <div class="source-filepath">.claude/rules/</div>
+          <div class="source-tag user">用户配置</div>
+          <div class="source-power">动态</div>
+        </div>
+      </div>
+
+      <div class="source-item" data-type="skills" data-id="skills">
+        <div class="source-avatar">⚡</div>
+        <div class="source-info">
+          <div class="source-name">技能系统</div>
+          <div class="source-desc">自定义技能配置</div>
+        </div>
+        <div class="source-meta">
+          <div class="source-filepath">settings.json</div>
+          <div class="source-tag user">用户配置</div>
+          <div class="source-power">~1.3k</div>
+        </div>
+      </div>
+
+      <div class="source-item" data-type="mcp" data-id="mcp">
+        <div class="source-avatar">🔌</div>
+        <div class="source-info">
+          <div class="source-name">MCP连接</div>
+          <div class="source-desc">外部工具服务</div>
+        </div>
+        <div class="source-meta">
+          <div class="source-filepath">settings.json</div>
+          <div class="source-tag user">用户配置</div>
+          <div class="source-power">~1k</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中间：核心展示 -->
+  <div class="glass-card core-panel">
+    <div class="energy-bar">
+      <div class="energy-header">
+        <span class="energy-label">上下文容量</span>
+        <span class="energy-value"><span id="tokenValue">0</span> <span>/ 15,000 Tokens</span></span>
+      </div>
+      <div class="energy-track">
+        <div class="energy-fill" id="energyFill" style="width: 0%"></div>
+      </div>
+    </div>
+    <div class="message-stream" id="messageStream">
+      <!-- 消息将动态插入 -->
+    </div>
+  </div>
+
+  <!-- 右侧：对话区 -->
+  <div class="glass-card chat-panel">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="icon">💬</span>
+        实时对话
+      </div>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <!-- 对话将动态插入 -->
+    </div>
+    <div class="chat-input-area">
+      <div class="input-wrapper">
+        <input type="text" class="chat-input" placeholder="输入消息..." readonly>
+        <button class="send-btn">发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部控制栏 -->
+<div class="control-bar">
+  <div class="step-info">
+    <div class="step-title" id="stepTitle">系统初始化</div>
+    <div class="step-desc" id="stepDesc">正在加载 Claude 核心系统指令...</div>
+  </div>
+  <div class="nav-controls">
+    <button class="nav-btn" id="prevBtn" onclick="prevStep()">
+      <span>←</span> 上一步
+    </button>
+    <button class="nav-btn primary" id="nextBtn" onclick="nextStep()">
+      下一步 <span>→</span>
+    </button>
+  </div>
+</div>
+
+<!-- 提示 -->
+<div class="hint">
+  💡 使用 ← → 方向键或点击按钮导航
+</div>
+
+<!-- 配置说明面板 -->
+<div class="config-panel" id="configPanel">
+  <div class="config-header">
+    <span>📚 配置指南</span>
+    <button class="config-close" onclick="toggleConfig()">✕</button>
+  </div>
+  <div class="config-content">
+    <div class="config-section">
+      <h4>🤖 System Prompt（系统核心）</h4>
+      <p><strong>来源：</strong>Anthropic 内置</p>
+      <p><strong>是否可修改：</strong>❌ 不可修改</p>
+      <p><strong>说明：</strong>定义 Claude 的基础能力边界、安全准则和默认行为模式</p>
+    </div>
+    <div class="config-section">
+      <h4>🧠 Memory（记忆库）</h4>
+      <p><strong>路径：</strong><code>~/.claude/memory/</code></p>
+      <p><strong>是否可修改：</strong>✅ 可编辑</p>
+      <p><strong>配置方式：</strong></p>
+      <ul>
+        <li>对话中说 "记住我是C++老师"</li>
+        <li>直接编辑 <code>~/.claude/memory/MEMORY.md</code></li>
+      </ul>
+    </div>
+    <div class="config-section">
+      <h4>📋 CLAUDE.md（项目档案）</h4>
+      <p><strong>路径：</strong><code>./CLAUDE.md</code>（当前工作目录）</p>
+      <p><strong>是否可修改：</strong>✅ 可编辑</p>
+      <p><strong>配置方式：</strong>在项目根目录创建 CLAUDE.md 文件，定义项目特定的指令和规范</p>
+    </div>
+    <div class="config-section">
+      <h4>📜 Rules（动态规则）</h4>
+      <p><strong>路径：</strong><code>.claude/rules/</code> 或子目录中的 <code>CLAUDE.md</code></p>
+      <p><strong>是否可修改：</strong>✅ 可编辑</p>
+      <p><strong>作用：</strong>按目录层级定义规则，覆盖或补充上级配置</p>
+      <p><strong>使用场景：</strong></p>
+      <ul>
+        <li>代码规范：src/ 目录使用特定命名法</li>
+        <li>测试要求：tests/ 目录必须包含单元测试</li>
+        <li>文档标准：docs/ 目录使用特定模板</li>
+      </ul>
+      <p><strong>示例：</strong>创建 <code>src/.claude/rules.md</code></p>
+      <pre>## 代码规范
+- 使用蛇形命名法（snake_case）
+- 所有函数必须添加中文注释
+- 头文件必须使用 #pragma once</pre>
+    </div>
+    <div class="config-section">
+      <h4>⚡ Skills（技能系统）</h4>
+      <p><strong>路径：</strong><code>settings.json</code> / <code>settings.local.json</code></p>
+      <p><strong>是否可修改：</strong>✅ 可编辑</p>
+      <p><strong>配置方式：</strong></p>
+      <pre>{
+  "skills": {
+    "generate-exercise": {
+      "description": "生成练习题",
+      "prompt": "..."
+    }
+  }
+}</pre>
+    </div>
+    <div class="config-section">
+      <h4>🔌 MCP（外部工具连接）</h4>
+      <p><strong>路径：</strong><code>settings.json</code></p>
+      <p><strong>是否可修改：</strong>✅ 可编辑</p>
+      <p><strong>配置方式：</strong></p>
+      <pre>{
+  "mcpServers": {
+    "sqlite": {
+      "command": "uvx",
+      "args": ["mcp-server-sqlite", "--db-path", "..."]
+    }
+  }
+}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- 配置指南按钮 -->
+<button class="config-toggle" onclick="toggleConfig()">
+  📚 配置指南
+</button>
+
+<!-- 详情弹窗 -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">📄 查看详情</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre class="code-block" id="modalContent"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 现代游戏风格 Claude Code 演示
+// 克力老师 · C++教学负责人专属版
+// ==========================================
+
+// 内容数据
+const projectMdContent = `# C++教学负责人职责
+
+> **负责人：克力老师**
+
+---
+
+## 一、教学内容升级迭代
+
+### 课程体系优化
+- 跟踪 C++ 新标准（C++17/20/23）
+- 引入实际项目案例，增强实战性
+- 建立题库（基础题、进阶题、综合项目）
+
+### 教学资源建设
+- 维护教学课件（PPT、视频、代码示例）
+- 收集优质开源项目作为教学素材
+- 建立代码规范与最佳实践文档
+
+---
+
+## 二、教师技术培训
+
+- C++ 新标准与新特性培训
+- 现代 CMake、Git 工具培训
+- 调试技巧与性能分析工具使用
+- 教学法培训（项目式学习、翻转课堂）
+
+---
+
+## 三、比赛与考级统筹
+
+- 制定年度竞赛规划（NOIP、蓝桥杯、ACM）
+- 组织校级选拔赛与竞赛培训
+- 对接 C++ 相关等级考试
+- 学生梯队建设（入门 → 提高 → 竞赛）`;
+
+const memoryContent = `# 记忆档案 · 克力老师
+
+## 基本信息
+- **职位**: C++教学负责人
+- **教授课程**: C++程序设计、数据结构、算法竞赛
+- **所在学校**: 信息技术学院
+
+## 教学偏好
+- 主要教授高中生和大学生
+- 关注信息学奥赛（NOIP）培训
+- 喜欢项目驱动教学法
+- 注重学生代码规范培养
+
+## 技术栈
+- 精通 C++17/20 新特性
+- 熟悉 STL 和算法竞赛常用技巧
+- 使用 VS Code + Clangd 开发环境
+- 课程项目使用 Git 进行版本管理
+
+## 近期关注
+- C++23 新特性的教学应用
+- NOIP 2025 考纲变化分析
+- 将 AI 编程助手融入课堂教学`;
+
+const skillsContent = `# 技能配置
+
+## 已配置技能
+
+### 1. generate-exercise (生成练习题)
+- 命令: /generate-exercise [难度] [知识点]
+- 功能: 自动生成 C++ 练习题
+- 示例: /generate-exercise 中等 动态规划
+
+### 2. code-review (代码审查)
+- 命令: /code-review [文件路径]
+- 功能: 审查学生代码，给出改进建议
+- 支持: 检查代码风格、算法效率、潜在bug
+
+### 3. noip-analyze (NOIP分析)
+- 命令: /noip-analyze [年份]
+- 功能: 分析指定年份 NOIP 真题考点
+
+### 4. create-lesson (创建教案)
+- 命令: /create-lesson [主题]
+- 功能: 生成完整的课程教案和示例代码`;
+
+const mcpContent = `# MCP 服务配置
+
+## 已连接服务
+
+### 1. GitHub MCP
+- 状态: 🟢 在线
+- 功能: 访问 GitHub 上的教学资源库
+- 用途: 获取示例代码、提交学生作业
+
+### 2. SQLite MCP
+- 状态: 🟢 在线
+- 功能: 访问学生成绩数据库
+- 用途: 查询学生练习完成情况、成绩统计
+
+### 3. Filesystem MCP
+- 状态: 🟢 在线
+- 功能: 访问本地文件系统
+- 用途: 读取课程资料、保存生成的教案
+
+### 4. WebFetch MCP
+- 状态: 🟢 在线
+- 功能: 获取网页内容
+- 用途: 获取 NOIP 官方通知、技术博客文章`;
+
+// 演示步骤
+const steps = [
+  {
+    title: "系统初始化",
+    desc: "Claude 加载底层系统指令，定义核心能力与安全边界",
+    tokens: 2300,
+    source: "系统内置",
+    editable: false,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: '📍 来源：系统内置（不可修改）\n\nClaude Code 系统初始化完成\n\n✓ 基础能力模块加载\n✓ 安全边界设定\n✓ 多语言支持（中文优先）\n✓ 代码生成与分析模块就绪\n\n💡 这是 Anthropic 定义的底层系统指令，用户无法直接修改。包含安全准则、基础能力边界、默认行为模式等。',
+        preview: false
+      }
+    ],
+    chat: [],
+    highlight: 'system'
+  },
+  {
+    title: "加载记忆档案",
+    desc: "从记忆库加载克力老师的偏好设置：C++教学负责人、关注NOIP竞赛、项目驱动教学法",
+    tokens: 3200,
+    source: "~/.claude/memory/",
+    editable: true,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: 'Claude Code 系统初始化完成...',
+        preview: true
+      },
+      {
+        type: 'memory',
+        avatar: '🧠',
+        sender: '记忆库',
+        badge: '~900 Tokens',
+        content: '📍 来源：~/.claude/memory/\n\n' + memoryContent + '\n\n💡 用户可通过 "记住..." 命令让 Claude 保存信息到此目录，或手动编辑 MEMORY.md 等文件。',
+        preview: true
+      }
+    ],
+    chat: [],
+    highlight: 'memory'
+  },
+  {
+    title: "加载项目配置",
+    desc: "读取当前项目的 CLAUDE.md，了解克力老师的具体职责与工作内容",
+    tokens: 5200,
+    source: "./CLAUDE.md",
+    editable: true,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: 'Claude Code 系统初始化完成...',
+        preview: true
+      },
+      {
+        type: 'memory',
+        avatar: '🧠',
+        sender: '记忆库',
+        badge: '~900 Tokens',
+        content: memoryContent,
+        preview: true
+      },
+      {
+        type: 'project',
+        avatar: '📋',
+        sender: '项目档案',
+        badge: '~2,000 Tokens',
+        content: '📍 来源：./CLAUDE.md（当前工作目录）\n\n' + projectMdContent + '\n\n💡 在当前工作目录创建 CLAUDE.md 文件，可以定义项目特定的指令、规范和上下文。Claude 会自动读取并加载。',
+        preview: true
+      }
+    ],
+    chat: [],
+    highlight: 'project'
+  },
+  {
+    title: "加载动态规则",
+    desc: "检查 .claude/rules/ 目录，加载目录级规则覆盖",
+    tokens: 5400,
+    source: ".claude/rules/",
+    editable: true,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: 'Claude Code 系统初始化完成...',
+        preview: true
+      },
+      {
+        type: 'memory',
+        avatar: '🧠',
+        sender: '记忆库',
+        badge: '~900 Tokens',
+        content: memoryContent,
+        preview: true
+      },
+      {
+        type: 'project',
+        avatar: '📋',
+        sender: '项目档案',
+        badge: '~2,000 Tokens',
+        content: projectMdContent,
+        preview: true
+      },
+      {
+        type: 'rules',
+        avatar: '📜',
+        sender: '动态规则',
+        badge: '动态加载',
+        content: '📍 来源：.claude/rules/ 或子目录 CLAUDE.md\n\n# 规则系统（Rules）\n\n## 作用\n在特定目录下定义规则，覆盖或补充上级配置\n\n## 使用场景\n- 代码规范：要求 src/ 目录使用特定命名规范\n- 测试要求：要求 tests/ 目录必须包含单元测试\n- 文档标准：要求 docs/ 目录使用特定模板\n\n## 示例：src/.claude/rules.md\n```\n## 代码规范\n- 使用蛇形命名法（snake_case）\n- 所有函数必须添加中文注释\n- 头文件必须使用 #pragma once\n```\n\n💡 规则按目录层级继承，子目录规则可覆盖父目录',
+        preview: true
+      }
+    ],
+    chat: [],
+    highlight: 'rules'
+  },
+  {
+    title: "配置技能系统",
+    desc: "加载自定义技能：生成练习题、代码审查、NOIP分析、创建教案",
+    tokens: 6700,
+    source: "settings.json",
+    editable: true,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: 'Claude Code 系统初始化完成...',
+        preview: true
+      },
+      {
+        type: 'memory',
+        avatar: '🧠',
+        sender: '记忆库',
+        badge: '~900 Tokens',
+        content: memoryContent,
+        preview: true
+      },
+      {
+        type: 'project',
+        avatar: '📋',
+        sender: '项目档案',
+        badge: '~2,000 Tokens',
+        content: projectMdContent,
+        preview: true
+      },
+      {
+        type: 'rules',
+        avatar: '📜',
+        sender: '动态规则',
+        badge: '动态加载',
+        content: '规则系统已加载...',
+        preview: true
+      },
+      {
+        type: 'skills',
+        avatar: '⚡',
+        sender: '技能系统',
+        badge: '~1,300 Tokens',
+        content: '📍 来源：settings.json（用户配置）\n\n' + skillsContent + '\n\n💡 在 Claude Code 设置中配置 skills，可以通过 /skill 命令快速调用预定义的操作流程。',
+        preview: true
+      }
+    ],
+    chat: [],
+    highlight: 'skills'
+  },
+  {
+    title: "建立 MCP 连接",
+    desc: "连接外部工具服务：GitHub、SQLite、文件系统、网页获取",
+    tokens: 7700,
+    source: "settings.json",
+    editable: true,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: 'Claude Code 系统初始化完成...',
+        preview: true
+      },
+      {
+        type: 'memory',
+        avatar: '🧠',
+        sender: '记忆库',
+        badge: '~900 Tokens',
+        content: memoryContent,
+        preview: true
+      },
+      {
+        type: 'project',
+        avatar: '📋',
+        sender: '项目档案',
+        badge: '~2,000 Tokens',
+        content: projectMdContent,
+        preview: true
+      },
+      {
+        type: 'rules',
+        avatar: '📜',
+        sender: '动态规则',
+        badge: '动态加载',
+        content: '规则系统已加载...',
+        preview: true
+      },
+      {
+        type: 'skills',
+        avatar: '⚡',
+        sender: '技能系统',
+        badge: '~1,300 Tokens',
+        content: skillsContent,
+        preview: true
+      },
+      {
+        type: 'mcp',
+        avatar: '🔌',
+        sender: 'MCP连接',
+        badge: '~1,000 Tokens',
+        content: '📍 来源：settings.json（用户配置）\n\n' + mcpContent + '\n\n💡 MCP (Model Context Protocol) 允许 Claude 连接外部工具。在 settings.json 中配置后，Claude 可以访问数据库、调用 API、操作文件系统等。',
+        preview: true
+      }
+    ],
+    chat: [],
+    highlight: 'mcp'
+  },
+  {
+    title: "用户输入",
+    desc: "克力老师输入需求：更新课程大纲，加入 C++20/23 新特性教学",
+    tokens: 7850,
+    messages: [
+      {
+        type: 'system',
+        avatar: '🤖',
+        sender: '系统核心',
+        badge: '2,300 Tokens',
+        content: 'Claude Code 系统初始化完成...',
+        preview: true
+      },
+      {
+        type: 'memory',
+        avatar: '🧠',
+        sender: '记忆库',
+        badge: '~900 Tokens',
+        content: memoryContent,
+        preview: true
+      },
+      {
+        type: 'project',
+        avatar: '📋',
+        sender: '项目档案',
+        badge: '~2,000 Tokens',
+        content: projectMdContent,
+        preview: true
+      },
+      {
+        type: 'rules',
+        avatar: '📜',
+        sender: '动态规则',
+        badge: '动态加载',
+        content: '规则系统已加载...',
+        preview: true
+      },
+      {
+        type: 'skills',
+        avatar: '⚡',
+        sender: '技能系统',
+        badge: '~1,300 Tokens',
+        content: skillsContent,
+        preview: true
+      },
+      {
+        type: 'mcp',
+        avatar: '🔌',
+        sender: 'MCP连接',
+        badge: '~1,000 Tokens',
+        content: mcpContent,
+        preview: true
+      },
+      {
+        type: 'user',
+        avatar: '👨‍🏫',
+        sender: '克力老师',
+        badge: '~150 Tokens',
+        content: '我打算下学期更新 C++ 课程大纲，想加入 C++20/23 的新特性，比如概念(Concepts)、范围(Ranges)、模块(Modules)。请帮我设计一个 8 课时的教学计划，为每个特性准备适合初学者的代码示例，并分析在 NOIP 中的应用场景。',
+        preview: false
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲，想加入 C++20/23 的新特性，比如概念(Concepts)、范围(Ranges)、模块(Modules)...' }
+    ],
+    highlight: 'user'
+  },
+  {
+    title: "AI 分析需求",
+    desc: "Claude 结合全部上下文理解：C++教学负责人身份、NOIP竞赛培训、需要代码示例和教学计划",
+    tokens: 7850,
+    messages: [
+      {
+        type: 'user',
+        avatar: '👨‍🏫',
+        sender: '克力老师',
+        badge: '~150 Tokens',
+        content: '我打算下学期更新 C++ 课程大纲...',
+        preview: false
+      },
+      {
+        type: 'ai',
+        avatar: '🎯',
+        sender: 'Claude',
+        badge: '~180 Tokens',
+        content: '需求分析完成\n\n👤 用户身份：C++教学负责人\n📚 目标：更新课程大纲，融入 C++20/23\n🎯 重点内容：Concepts、Ranges、Modules\n⏱️ 课时：8节课\n\n📊 策略分析：\n✓ 基于用户精通 C++17/20 的背景\n✓ 结合 NOIP 竞赛培训需求\n✓ 采用项目驱动教学法\n✓ 准备循序渐进的代码示例',
+        preview: false
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲...' }
+    ],
+    highlight: 'ai'
+  },
+  {
+    title: "调用技能",
+    desc: "识别到可以使用 create-lesson 技能，自动生成教案内容",
+    tokens: 7770,
+    messages: [
+      {
+        type: 'ai',
+        avatar: '🎯',
+        sender: 'Claude',
+        badge: '~180 Tokens',
+        content: '需求分析完成...',
+        preview: true
+      },
+      {
+        type: 'skills',
+        avatar: '✨',
+        sender: '技能：create-lesson',
+        badge: '~120 Tokens',
+        content: '技能调用：create-lesson\n\n参数设置：\n├── 主题：C++20/23 新特性教学\n├── 课时：8课时\n├── 知识点：[Concepts, Ranges, Modules]\n├── 受众：高中生/大学生\n└── 包含示例：是\n\n生成中...\n✓ 第1-2课时：概念(Concepts) - 2小时\n✓ 第3-5课时：范围(Ranges) - 3小时\n✓ 第6-8课时：模块(Modules) - 3小时',
+        preview: false
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲...' }
+    ],
+    highlight: 'skills'
+  },
+  {
+    title: "MCP 数据查询",
+    desc: "通过 SQLite MCP 查询学生历史成绩，为教学计划提供数据支撑",
+    tokens: 7920,
+    messages: [
+      {
+        type: 'skills',
+        avatar: '✨',
+        sender: '技能：create-lesson',
+        badge: '~120 Tokens',
+        content: '技能调用：create-lesson...',
+        preview: true
+      },
+      {
+        type: 'mcp',
+        avatar: '🔌',
+        sender: 'MCP：SQLite',
+        badge: '~150 Tokens',
+        content: '执行数据库查询\n\nSQL：\nSELECT topic, avg_score, difficulty\nFROM student_performance\nWHERE topic IN ("templates", "stl", "modern_cpp")\n\n查询结果：\n├─ 模板与泛型：78分 ✓ 基础扎实\n├─ STL 标准库：82分 ✓ 掌握良好\n└─ 现代C++特性：45分 ⚠ 需要加强\n\n💡 建议：从基础概念讲起，循序渐进',
+        preview: false
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲...' }
+    ],
+    highlight: 'mcp'
+  },
+  {
+    title: "生成完整回复",
+    desc: "结合所有上下文信息、技能生成的教案、MCP查询的数据，生成针对性回复",
+    tokens: 8800,
+    messages: [
+      {
+        type: 'mcp',
+        avatar: '🔌',
+        sender: 'MCP：SQLite',
+        badge: '~150 Tokens',
+        content: '执行数据库查询...',
+        preview: true
+      },
+      {
+        type: 'ai',
+        avatar: '🎯',
+        sender: 'Claude',
+        badge: '~880 Tokens',
+        content: '═══════════════════════════\n    C++20/23 新特性 8课时教学计划\n═══════════════════════════\n\n根据学生数据（现代C++基础45分），建议采用渐进式教学：\n\n【第1-2课时】概念(Concepts)\n├── 目标：理解概念约束机制\n├── 示例：template<Numeric T> T add(T a, T b)\n├── 练习：编写 Sortable 概念\n└── NOIP应用：编译期类型检查\n\n【第3-5课时】范围(Ranges)\n├── 目标：掌握管道操作与惰性求值\n├── 示例：vec | filter | transform | take\n├── 练习：实现自定义视图\n└── NOIP应用：简化数据处理代码\n\n【第6-8课时】模块(Modules)\n├── 目标：替代头文件，加速编译\n├── 示例：export module math;\n├── 练习：重构现有项目为模块\n└── NOIP应用：大型项目管理\n\n✅ 已生成完整教案、代码示例、配套习题',
+        preview: true
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲...' },
+      { type: 'ai', name: 'Claude', content: '根据学生数据（现代C++基础45分），我为您设计了以下教学方案：\n\n已生成包含 Concepts、Ranges、Modules 的完整教案，共 8 课时。考虑到学生现有基础，建议从基础概念讲起，循序渐进...\n\n详细内容包括每课时的教学目标、代码示例、NOIP应用场景分析和配套练习题。是否需要我针对某个具体特性展开详细说明？' }
+    ],
+    highlight: 'ai'
+  },
+  {
+    title: "对话继续",
+    desc: "克力老师继续提问，对话历史被保留在上下文中",
+    tokens: 8880,
+    messages: [
+      {
+        type: 'ai',
+        avatar: '🎯',
+        sender: 'Claude',
+        badge: '~880 Tokens',
+        content: '═══════════════════════════...',
+        preview: true
+      },
+      {
+        type: 'user',
+        avatar: '👨‍🏫',
+        sender: '克力老师',
+        badge: '~80 Tokens',
+        content: '很好！请帮我生成第1课时的 PPT 大纲，并准备一份学生课前预习材料。',
+        preview: false
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲...' },
+      { type: 'ai', name: 'Claude', content: '根据学生数据（现代C++基础45分），我为您设计了以下教学方案...' },
+      { type: 'user', name: '克力老师', content: '很好！请帮我生成第1课时的 PPT 大纲，并准备一份学生课前预习材料。' }
+    ],
+    highlight: 'user'
+  },
+  {
+    title: "演示完成",
+    desc: "完整的上下文窗口演示结束，展示了 System Prompt、Memory、CLAUDE.md、Skills、MCP 的协同工作",
+    tokens: 9200,
+    messages: [
+      {
+        type: 'user',
+        avatar: '👨‍🏫',
+        sender: '克力老师',
+        badge: '~80 Tokens',
+        content: '很好！请帮我生成第1课时的 PPT 大纲...',
+        preview: false
+      },
+      {
+        type: 'ai',
+        avatar: '🎉',
+        sender: '演示完成',
+        badge: '~320 Tokens',
+        content: '🎊 上下文窗口演示完成！\n\n本次演示展示了 Claude Code 的完整工作流程：\n\n✅ 系统指令 (System Prompt)\n✅ 长期记忆 (Memory)\n✅ 项目配置 (CLAUDE.md)\n✅ 自定义技能 (Skills)\n✅ 外部工具 (MCP)\n✅ 对话上下文管理\n\n💡 所有信息层协同工作，为 AI 提供完整背景，生成精准回复。\n\n点击「下一步」重新开始演示',
+        preview: false
+      }
+    ],
+    chat: [
+      { type: 'user', name: '克力老师', content: '我打算下学期更新 C++ 课程大纲...' },
+      { type: 'ai', name: 'Claude', content: '根据学生数据（现代C++基础45分），我为您设计了以下教学方案...' },
+      { type: 'user', name: '克力老师', content: '很好！请帮我生成第1课时的 PPT 大纲...' },
+      { type: 'ai', name: 'Claude', content: '✅ 已为生成第1课时「概念(Concepts)」的PPT大纲和预习材料...' }
+    ],
+    highlight: 'ai'
+  }
+];
+
+// 当前步骤
+let currentStep = 0;
+const totalSteps = steps.length;
+
+// 初始化
+function init() {
+  renderStep();
+  setupEventListeners();
+}
+
+// 渲染当前步骤
+function renderStep() {
+  const step = steps[currentStep];
+
+  // 更新标题和步骤
+  document.getElementById('stepNum').textContent = currentStep + 1;
+  document.getElementById('stepTitle').textContent = step.title;
+  document.getElementById('stepDesc').textContent = step.desc;
+
+  // 更新能量条
+  const percentage = Math.min((step.tokens / 15000) * 100, 100);
+  document.getElementById('tokenValue').textContent = step.tokens.toLocaleString();
+  document.getElementById('energyFill').style.width = `${percentage}%`;
+
+  // 渲染消息流
+  const messageStream = document.getElementById('messageStream');
+  messageStream.innerHTML = '';
+
+  step.messages.forEach((msg, index) => {
+    const msgEl = document.createElement('div');
+    msgEl.className = `message-item ${msg.type}`;
+    msgEl.style.animationDelay = `${index * 0.1}s`;
+
+    const isClickable = msg.preview ? 'clickable' : '';
+    const previewClass = msg.preview ? 'preview' : '';
+
+    msgEl.innerHTML = `
+      <div class="message-avatar">${msg.avatar}</div>
+      <div class="message-content">
+        <div class="message-header">
+          <span class="message-sender">${msg.sender}</span>
+          <span class="message-badge">${msg.badge}</span>
+        </div>
+        <div class="message-body ${previewClass}">${escapeHtml(msg.content)}</div>
+      </div>
+    `;
+
+    if (msg.preview) {
+      msgEl.classList.add('clickable');
+      msgEl.onclick = () => showModal(`${msg.avatar} ${msg.sender}`, msg.content);
+    }
+
+    messageStream.appendChild(msgEl);
+  });
+
+  // 滚动到底部
+  messageStream.scrollTop = messageStream.scrollHeight;
+
+  // 渲染对话
+  const chatMessages = document.getElementById('chatMessages');
+  chatMessages.innerHTML = '';
+
+  step.chat.forEach(chat => {
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${chat.type}`;
+
+    bubble.innerHTML = `
+      <div class="bubble-header">${chat.name}</div>
+      ${escapeHtml(chat.content)}
+    `;
+
+    chatMessages.appendChild(bubble);
+  });
+
+  // 滚动对话到底部
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // 高亮来源项
+  document.querySelectorAll('.source-item').forEach(item => {
+    item.classList.remove('active');
+    if (item.dataset.type === step.highlight) {
+      item.classList.add('active');
+    }
+  });
+
+  // 更新按钮
+  document.getElementById('prevBtn').disabled = currentStep === 0;
+  const nextBtn = document.getElementById('nextBtn');
+  if (currentStep === totalSteps - 1) {
+    nextBtn.innerHTML = '重新开始 <span>↻</span>';
+  } else {
+    nextBtn.innerHTML = '下一步 <span>→</span>';
+  }
+}
+
+// 下一步
+function nextStep() {
+  if (currentStep < totalSteps - 1) {
+    currentStep++;
+    renderStep();
+  } else {
+    currentStep = 0;
+    renderStep();
+  }
+}
+
+// 上一步
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    renderStep();
+  }
+}
+
+// 显示模态框
+function showModal(title, content) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalContent').textContent = content;
+  document.getElementById('detailModal').classList.add('active');
+}
+
+// 关闭模态框
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('active');
+}
+
+// 转义 HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// 事件监听
+function setupEventListeners() {
+  // 来源项点击
+  document.querySelectorAll('.source-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const typeMap = {
+        'system': 0,
+        'memory': 1,
+        'project': 2,
+        'rules': 3,
+        'skills': 4,
+        'mcp': 5
+      };
+
+      if (typeMap[item.dataset.type] !== undefined) {
+        currentStep = typeMap[item.dataset.type];
+        renderStep();
+      }
+    });
+  });
+
+  // 键盘导航
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      nextStep();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      prevStep();
+    } else if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
+
+  // 点击遮罩关闭弹窗
+  document.getElementById('detailModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      closeModal();
+    }
+  });
+}
+
+// 切换配置面板
+function toggleConfig() {
+  const panel = document.getElementById('configPanel');
+  panel.classList.toggle('active');
+}
+
+// 启动
+init();
+</script>
+
+</body>
+</html>
